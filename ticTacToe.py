@@ -1,10 +1,16 @@
 # first we need a state class for board and a judge
 # 3 major components  -  state, action, reward
+import pickle
+
 import numpy as np
 
 # this is specific to the game, increase to 5 for Go
 BOARD_ROWS = 3
 BOARD_COLUMNS = 3
+LEARNING_RATE = 0.2
+DISCOUNT = 0.9
+# epsilon denotes the probability of taking a random action or in short exploration
+EPSILON = 0.3
 
 
 class State:
@@ -87,7 +93,67 @@ class State:
             self.p1.feedReward(0)
             self.p2.feedReward(1)
         else:
-            self.p1.feedReward(0.1) # here tie is considered as bad result
+            self.p1.feedReward(0.1)  # here tie is considered as bad result
             self.p2.feedReward(0.5)
 
-    
+
+# player class to represent the player that can do the following actions:
+# Choose action based on estimations
+# record all states of game
+# update Q values after each game
+# save and load policy
+
+
+class Player:
+    def __init__(self, name, exp_rate=EPSILON):
+        self.name = name
+        self.states = []  # record all positions of player in each game
+        self.lr = LEARNING_RATE
+        self.exp_rate = exp_rate
+        self.decay_gamma = DISCOUNT
+        # we save state value pairs in form of a dictionary.
+        self.states_value = {}
+
+    def getHash(self, board):
+        return str(board.reshape(BOARD_COLUMNS * BOARD_ROWS))
+
+    def chooseAction(self, positions, current_board, symbol):
+        if np.random.uniform(0, 1) <= self.exp_rate:
+            # we take a random action
+            idx = np.random.choice(len(positions))
+            action = positions[idx]
+        else:
+            value_max = -np.inf
+            for p in positions:
+                next_board = current_board.copy()
+                next_board[p] = symbol
+                next_boardHash = self.getHash(next_board)
+                value = 0 if self.states_value.get(next_boardHash) is None else self.states_value.get(next_boardHash)
+                if value >= value_max:
+                    value_max = value
+                    action = p
+        return action
+
+    def addState(self, state):
+        self.state.append(state)
+
+    # this is to be done at the end of each game
+    # where we propagate the values obtained as rewards in states_value dictionary
+    def feedReward(self, reward):
+        # as we are back propagating the values, we use reversed
+        for st in reversed(self.states):
+            if self.states_value.get(st) is None:
+                self.states_value[st] = 0
+            self.states_value[st] += self.lr * (self.decay_gamma * reward - self.states_value[st])
+            reward = self.states_value[st]
+
+    def reset(self):
+        self.states = []
+
+    def savePolicy(self):
+        with open('policy_' + str(self.name), 'wb') as fw:
+            pickle.dump(self.states, fw)
+
+    def loadPolicy(self, file):
+        with open(file, 'rb') as f:
+            self.states_value = pickle.load(f)
