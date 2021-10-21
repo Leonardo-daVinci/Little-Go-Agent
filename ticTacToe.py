@@ -11,11 +11,12 @@ LEARNING_RATE = 0.2
 DISCOUNT = 0.9
 # epsilon denotes the probability of taking a random action or in short exploration
 EPSILON = 0.3
+ROUNDS = 100
 
 
 class State:
     def __init__(self, p1, p2):
-        self.board = np.zeros(BOARD_ROWS, BOARD_COLUMNS)
+        self.board = np.zeros((BOARD_ROWS, BOARD_COLUMNS))
         self.p1 = p1
         self.p2 = p2
         self.isEnd = False
@@ -24,7 +25,7 @@ class State:
         # since p1 always plays first
         self.playerSymbol = 1
 
-    # this is usef to hash the board table so that it can be stored in the state, value directory
+    # this is used to hash the board table so that it can be stored in the state, value directory
     def getHash(self):
         self.boardHash = str(self.board.reshape(BOARD_COLUMNS * BOARD_ROWS))
         return self.boardHash
@@ -85,6 +86,7 @@ class State:
     # only when game ends - this is to be calculated for Go
     def giveReward(self):
         result = self.winner()
+        print(f"Winner of the game is {result}")
         # back propagate reward
         if result == 1:
             self.p1.feedReward(1)
@@ -95,6 +97,54 @@ class State:
         else:
             self.p1.feedReward(0.1)  # here tie is considered as bad result
             self.p2.feedReward(0.5)
+
+    # we need to reset board after the game is over
+    def reset(self):
+        self.board = np.zeros((BOARD_ROWS, BOARD_COLUMNS))
+        self.boardHash = None
+        self.isEnd = False
+        self.playerSymbol = 1
+
+    # now we add the training against itself and learning the q-values in the process
+    def play(self, rounds=ROUNDS):
+        for i in range(rounds):
+            if i % 10 == 0:
+                print(f"Rounds:  {i}")
+            while not self.isEnd:
+                # for player 1
+                positions = self.availablePositions()
+                p1_action = self.p1.chooseAction(positions, self.board, self.playerSymbol)
+                # take action and update the board
+                self.updateState(p1_action)
+                boardHash = self.getHash()
+                self.p1.addState(boardHash)
+
+                # check if someone won the game or not
+                win = self.winner()
+                if win is not None:
+                    self.giveReward()
+                    self.p1.reset()
+                    self.p2.reset()
+                    self.reset()
+                    break
+
+                else:
+                    # Player 2
+                    positions = self.availablePositions()
+                    p2_action = self.p2.chooseAction(positions, self.board, self.playerSymbol)
+                    self.updateState(p2_action)
+                    board_hash = self.getHash()
+                    self.p2.addState(board_hash)
+
+                    win = self.winner()
+                    if win is not None:
+                        # self.showBoard()
+                        # ended with p2 either win or draw
+                        self.giveReward()
+                        self.p1.reset()
+                        self.p2.reset()
+                        self.reset()
+                        break
 
 
 # player class to represent the player that can do the following actions:
@@ -135,7 +185,7 @@ class Player:
         return action
 
     def addState(self, state):
-        self.state.append(state)
+        self.states.append(state)
 
     # this is to be done at the end of each game
     # where we propagate the values obtained as rewards in states_value dictionary
@@ -157,3 +207,13 @@ class Player:
     def loadPolicy(self, file):
         with open(file, 'rb') as f:
             self.states_value = pickle.load(f)
+
+
+if __name__ == '__main__':
+    # training the agents
+    p1 = Player("p1")
+    p2 = Player("p2")
+
+    st = State(p1, p2)
+    print("training the agents ...")
+    st.play(50)
