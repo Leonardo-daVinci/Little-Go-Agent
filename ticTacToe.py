@@ -107,6 +107,7 @@ class State:
 
     # now we add the training against itself and learning the q-values in the process
     def play(self, rounds=ROUNDS):
+        winning_ratio = 0
         for i in range(rounds):
             if i % 10 == 0:
                 print(f"Rounds:  {i}")
@@ -122,6 +123,8 @@ class State:
                 # check if someone won the game or not
                 win = self.winner()
                 if win is not None:
+                    if win == 1:
+                        winning_ratio += 1
                     self.giveReward()
                     self.p1.reset()
                     self.p2.reset()
@@ -138,6 +141,8 @@ class State:
 
                     win = self.winner()
                     if win is not None:
+                        if win == 1:
+                            winning_ratio += 1
                         # self.showBoard()
                         # ended with p2 either win or draw
                         self.giveReward()
@@ -145,6 +150,7 @@ class State:
                         self.p2.reset()
                         self.reset()
                         break
+        print(winning_ratio / rounds)
 
 
 # player class to represent the player that can do the following actions:

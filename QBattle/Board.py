@@ -11,7 +11,7 @@ O_WIN = 2
 class Board:
     def __init__(self, board=None, show_board=False, show_result=False):
         if board is None:
-            self.board = np.zeroes((5, 5), dtype=np.int)
+            self.board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=np.int)
         else:
             self.board = board.copy()
         self.game_result = ONGOING
@@ -19,12 +19,19 @@ class Board:
         self.show_result = show_result
         # adding for go
         self.died_pieces = []
+        self.previous_board = deepcopy(board)
+
+    def set_board(self, piece_type, previous_board, board):
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                if previous_board[i][j] == piece_type and board[i][j] != piece_type:
+                    self.died_pieces.append((i, j))
 
     def set_show_board(self, show_board):
         self.show_board = show_board
 
     def getHash(self):
-        return str(self.board.reshape(BOARD_SIZE * BOARD_SIZE))
+        return ''.join([str(self.board[i][j]) for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)])
 
     def reset(self):
         self.board.fill(0)
@@ -34,7 +41,9 @@ class Board:
         board = self.board
 
         # Check if the place is in the board range
-        if not (0 <= i < len(board) and 0 <= j < len(board)):
+        if not (0 <= i < 5):
+            return False
+        if not (0 <= j < 5):
             return False
 
         # Check if the place already has a piece
@@ -48,8 +57,8 @@ class Board:
         # Check if the place has liberty
         test_board[i][j] = piece_type
         test_go.board = test_board
-        if test_go.find_liberty(i, j):
-            return True
+        if not test_go.find_liberty(i, j):
+            return False
 
         # If not, remove the died pieces of opponent and check again
         test_go.remove_died_pieces(3 - piece_type)
@@ -143,39 +152,35 @@ class Board:
             self.board = board
 
     def move(self, row, col, piece_type, previous_board):
-        if not self.valid_place_check(row, col, piece_type, previous_board):
-            print(row, col)
-        else:
-            raise ValueError("Invalid Move")
 
+        previous_board = self.board
         self.board[row][col] = piece_type
         self.game_result = self._check_winner()
 
         if self.show_result:
             self.game_result_report()
 
-        return self.board, self.game_result
+        return self.board, self.game_result, previous_board
+
+    def game_over(self):
+        return self.game_result != ONGOING
 
     def _check_winner(self):
         # first we check if game has ended or not
-        if self.game_end():
+        if self.game_over():
             count1 = self.score(1)
             count2 = self.score(2)
+            print("Winner calculation : {} {}".format(count1, count2))
             if count1 > count2 + 2.5:
-                return 1
-            elif count1 < count2 + 2.5:
-                return 2
+                return X_WIN
             else:
-                return 0
+                return O_WIN
         else:
             return ONGOING
 
     def score(self, piece_type):
         board = self.board
         return np.count_nonzero(board == piece_type)
-
-    def game_end(self):
-        pass
 
     def game_result_report(self):
         if self.game_result is ONGOING:
@@ -188,6 +193,3 @@ class Board:
         elif self.game_result is O_WIN:
             print('Game Over : Winner White'.center(30))
         print('=' * 30)
-
-    def game_over(self):
-        return self.game_result != ONGOING
