@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/QLearning.iml" filepath="$PROJECT_DIR$/.idea/QLearning.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/GoPlayer.iml" filepath="$PROJECT_DIR$/.idea/GoPlayer.iml" />
     </modules>
   </component>
 </project>
